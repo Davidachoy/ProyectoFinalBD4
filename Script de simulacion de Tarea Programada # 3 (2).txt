@@ -1,0 +1,174 @@
+Ejemplo del script de similacion
+
+-- cargos todas las fechas en la Tabla fechas
+
+Declare @fechas Table (sec int identity (1, 1), fechaOperacion date)
+Declare @EmpleadosInsertar table (-- estructura tal como viene del XML)
+Declare @EmpleadosBorrar table (-- estructura tal como viene del XML)
+Declare @InsertarDeducciones table (estructura tal como viene del XML)
+Declare @EliminarDeducciones table (estructura tal como viene del XML)
+DECLARE @asistencias TABLE (Sec INT IDENTITY(1,), ValorDocIdentidad VARCHAR(64), Entrada DATETIME, Salida DATETIME)
+
+Insert @Fechas (FechaOperacion)
+Select nodoFechaOperacion.Fecha
+From @XMLDoc
+Where (nodo es fechaOperacion)
+
+Declare @FechaItera Date, @FechaFin Date
+Select @FechaItera=min(FechaOperacion), @FechaFinmin(FechaOperacion)
+from @Fechas
+
+While (@FechaItera<=@FechaFin)
+begin
+   
+	-- cargo en tablas variables la info del xml para esta fecha
+	Insert @EmpleadosInsertar (...)
+	Select E.Nombre, E.IdTipoDocIdentidad, E.ValorDocumentoIdentidad, E.IdPuesto, E....
+	From @XMLDoc.EmpleadosInsertar E
+	where @XMLDoc.FechaOperacion=@FechaItera
+	
+	insert @EmpleadosBorrar  ...
+	insert @InsertarDeducciones  ..
+	insert @EliminarDeducciones ...
+	insert @asistencias
+	insert @NuevosHorarios
+	
+	-- Aplicamos los cargado en tablas variable a la BD real
+	-- segun la entidad se puede hacer iterando o utilizando SQL masivo.
+	
+	Insert dbo.Empleado (Nombre, IdTipoDocIdentidad, ValorDocumentoIdentidad, ...)
+	Select E.Nombre, E.IdTipoDocIdentidad, E.ValorDocumentoIdentidad, ..
+	From @EmpleadosInsertar
+	
+	-- el mapeo entre usuarios y empleado, al insertar usuarios sera por ValorDocIdentidad
+	
+	INSERT dbo.Usuarios (UserName, Password, EsAdministrador, IdEmpleado)
+	SELECT E.UserName, E.Password, 0, E.Id
+	FROM @EmpleadosInsertar EXML
+	INNER JOIN dbo.Empleado E ON EXML.ValorDocumentoIdentidad=E.ValorDocIdentidad
+	
+	-- Insertar deduccion no obligatorias
+    INSERT dbo.DeduccionesXEmpleado (..)
+	Select 
+	from @InsertarDeducciones
+	
+	-- desasociar (eliminar deducciones) ...
+	
+	UPDATE ....
+	
+	-- Procesar asistencias
+	
+	Select @lo=Min(A.Sec), @hi=Max(A.Sec)
+	from @asistencias A
+	
+	WHILE (@lo<=@hi)
+	BEGIN
+		SELECT @Entrada=A.Entrada, @Salida=A.Salida, @ValorDocIdentidad=A.ValorDocIdentidad
+		FROM @Asistencias
+		WHERE A.Sec=@lo;
+		
+		Select @idempleado=E.Id
+		from dbo.Empleado E
+		Where E.ValorDocIdentidad=@ValorDocIdentidad
+		
+		-- Determinar horas ordinarias
+			-- determinar la jornada de esta semana de ese empleado
+			Select @HoraInicioJornada=TJ.HoraInicio, @HoraFinJornada=TJ.HoraFin
+			FROM dbo.SemanaPlanilla S
+			INNER JOIN dbo.Jornada J on S.Id=J.IdSemana 
+			INNER JOIN dbo.TipoJornada TJ H.IdTipoJornada=TJ.I
+			WHERE (J.IdEmpleado=@idempleado) and (@FechaItera between S.FechaInicio and S.FechaFin)
+			
+			-- determinar horas ordinarias
+			Set @horasOrdinarias = ????
+			
+			-- determinar monto ganado por horas ordinarias
+			
+			Set @montoGanadoHO = @horasOrdinarias*Puesto.SalarioxHOra de ese empleado
+			
+			IF @fechaItera es feriado o domingo
+			begin
+				
+				--- determinar horas extraordinarias dobles  y monto
+				@montoGanadoHO @horasOrdinarias*Puesto.SalarioxHOra de ese empleado * 2
+				
+				@horasExtraOrdinariasDobles = ???
+				
+			end else begin
+				--- determinar horas extraordinarias normales y moto
+				@montoGanadoHO @horasOrdinarias*Puesto.SalarioxHOra de ese empleado * 1. 5
+				
+				@horasExtraOrdinariasNormales = ???
+			
+			end;
+			
+			Set @EsJueves = 0
+			If fechaitera es jueves
+			begin
+			  Set @EsJueves = 1
+			  
+			  -- calcular deduccionesObligatorias
+			  
+			  -- calcular deducciones no obligatorias
+			  
+			
+			end
+			
+			Set @EsFinMes=0
+			If FechaItera es fin de mes
+			Begin
+			   Set @EsFinMes=1
+			end
+			
+			
+			.... la transaccion siempre sera lo ultimo respecto del proceso de un empleado
+			Begin transation
+			    insertar asistencias 
+				...
+				
+				insertar movimientoplanilla ()
+				select .... @montoGanadoHO ...
+				where  @horasOrdinarias>0
+				
+				insertar movimientoplanilla ()
+				select .... @montoGanadoHExtrasNormal ...
+				where  @horasExtraOrdinariasNOrmales>0
+				
+				insertar movimientoplanilla ()
+				select .... @montoGanadoHExtrasDobles ...
+				where  @horasExtraOrdinariasDobles>0
+				
+				if @esJueves
+				Begin
+					-- insertar movimientos de deduccion
+					-- Cear instancia en semanaplanilla
+					-- actualizar planillaxmesxemp
+				end
+				
+				If #esfin de mes
+				begin
+				    -- crear instancia de PlanillaxMesxEmp
+				end
+				
+				Update dbo.PlanillaSemanalXEmp
+				set SalarioBruto=@montoGanadoHO+@montoGanadoHExtrasNormal+@horasExtraOrdinariasDobles
+				where EdEmpleado=@idEmpleado and IdSemama=@IdSemana	
+			
+			commit transaction
+			
+			
+			
+		
+		
+	
+	END
+	
+	
+	
+	
+	
+	
+
+
+
+end;
