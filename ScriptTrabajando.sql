@@ -7,7 +7,6 @@ CREATE OR ALTER PROCEDURE dbo.InsertarMarca
 AS
 BEGIN
 	SET NOCOUNT ON;
-	BEGIN TRY
 		SET @OutResult = 0
 
 		DECLARE @idEmp INT
