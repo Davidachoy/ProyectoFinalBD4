@@ -11,105 +11,57 @@ DECLARE @xmlData XML---------------XML
 
 
 -----------------------------------Variables para trabajar mejor
-DECLARE @Fechas TABLE ( --tabla para manejar las fechas
-	sec INT IDENTITY (1, 1),
-	FechaOperacion DATE
-)
+DECLARE @Fechas TABLE (
+					   sec INT IDENTITY (1, 1),
+					   FechaOperacion DATE
+					   )
 
-DECLARE @EmpleadosInsertar TABLE (    --tabala para los empleados a insertar
-	Sec INT IDENTITY(1,1),
-	FechaNacimiento DATE,
-	Nombre VARCHAR(64),
-	IdTipoDocumento INT,
-	ValorDocumento INT,
-	IdDepartamento INT,
-	IdPuesto INT,
-	Usuario VARCHAR(64),
-	Password VARCHAR(64)
-)
+DECLARE @EmpleadosInsertar TABLE (
+								  Sec INT IDENTITY(1,1),
+								  FechaNacimiento DATE,
+								  Nombre VARCHAR(64),
+								  IdTipoDocumento INT,
+								  ValorDocumento INT,
+								  IdDepartamento INT,
+								  IdPuesto INT,
+								  Usuario VARCHAR(64),
+								  Password VARCHAR(64)
+								  )
 
-DECLARE @EmpleadosBorrar TABLE ( -- tabla para los empleados a borrar
-	Sec INT IDENTITY(1,1),
-	ValorDocumento INT
-)
+DECLARE @EmpleadosBorrar TABLE (
+								Sec INT IDENTITY(1,1),
+								ValorDocumento INT
+								)
 
-DECLARE @InsertarDeduccionesEmpleado TABLE ( -- tabla para las deducciones  a insertar
-	Sec INT IDENTITY(1,1),
-	monto MONEY,
-	ValorDocumento INT,
-	IdDeduccion INT
-)
+DECLARE @InsertarDeduccionesEmpleado TABLE (
+									Sec INT IDENTITY(1,1),
+									monto MONEY,
+									ValorDocumento INT,
+									IdDeduccion INT
+									)
 
-DECLARE @EliminarDeduccionesEmpleado TABLE ( -- tabla para eliminar deducciones
-	Sec INT IDENTITY(1,1),
-	ValorDocumento INT,
-	IdDeduccion INT
-)
+DECLARE @EliminarDeduccionesEmpleado TABLE (
+									Sec INT IDENTITY(1,1),
+									ValorDocumento INT,
+									IdDeduccion INT
+									)
 
-DECLARE @Asistencias TABLE (--tabla para las asistencias
-	Sec INT IDENTITY(1,1),
-	ValorDocumento INT,
-	Entrada smalldatetime,
-	Salida smalldatetime
-)
+DECLARE @Asistencias TABLE (
+							Sec INT IDENTITY(1,1),
+							ValorDocumento INT,
+							Entrada smalldatetime,
+							Salida smalldatetime
+							)
 
-DECLARE @NuevosHorarios TABLE (--tablas para las jornadas
-	Sec INT IDENTITY(1,1),
-	IdJornada INT,
-	ValorDocumentoIdentidad INT
-)
+DECLARE @NuevosHorarios TABLE (
+								Sec INT IDENTITY(1,1),
+								IdJornada INT,
+								ValorDocumentoIdentidad INT
+								)
 
 -------------------------------------------------------
---Declarar variables
-
-DECLARE @FechaItera DATE
-DECLARE @FechaFin DATE
-DECLARE @diaFlag INT
-DECLARE @FechaFinSemana DATE
-DECLARE @RecorrerSemanas DATE
-DECLARE @Semanas INT
-DECLARE @Primera INT = 1
-DECLARE @SecInicio INT
-DECLARE @SecFinal INT
-DECLARE @SecItera INT
-DECLARE @FechaEntrada DATETIME
-DECLARE @FechaSalida DATETIME
-DECLARE @ValorDocumentoIdentidad INT
-DECLARE @Secuencia INT
-DECLARE @empleadoEliminar INT
-DECLARE @tipoEliminar INT
-DECLARE @lo INT
-DECLARE @hi INT
-DECLARE @Entrada SMALLDATETIME
-DECLARE @Salida SMALLDATETIME
-DECLARE @ValorDocIdentidad INT
-DECLARE @IdEmpleado INT
-DECLARE @HoraInicioJornada TIME(0)
-DECLARE @HoraFinJornada TIME(0)
-DECLARE @horasOrdinarias INT
-DECLARE @SalarioXHora MONEY
-DECLARE @MontoGanadoHO MONEY
-DECLARE @EsJueves BIT
-DECLARE @EsFinMes BIT
-DECLARE @ultimaFecha INT
-DECLARE @HorasLaborales INT
-DECLARE @HorasExtra INT
-DECLARE @HorasExtraDoble INT
-DECLARE @MontoGanadoHExtra MONEY
-DECLARE @MontoGanadoHExtraDoble MONEY
-DECLARE @IdJornadaAs INT
-DECLARE @HorasLaboralesTrabajadas INT
-DECLARE @HoraInicio DATE
-DECLARE @HoraFin DATE
-DECLARE @dialibre DATE
 
 
-
-
---Ejecutar script cargar catalogo
-
-EXEC [dbo].[BorrarDatos]-- SCRIPT PARA BORRAR DATOS
-EXEC [dbo].[cargarDatosCatalogo]
 
 
 
@@ -118,33 +70,38 @@ SELECT T.Item.value('@Fecha', 'DATE') AS FechaOperacion
 FROM @xmlData.nodes('Datos/Operacion') AS T(Item)
 
 
+
+
+DECLARE @FechaItera DATE, @FechaFin DATE-----------------------------------------DELCARA LOS VALORES DE FECHAS NECESARIOS @FechaItera, @FechaFin, @FechaFinSemana
 SET @FechaItera = (SELECT MIN(f.FechaOperacion)
 					FROM @Fechas f)
 SET @FechaFin  = (SELECT MAX(f.FechaOperacion)
 					FROM @Fechas f)
 
+DECLARE @diaFlag INT, @FechaFinSemana DATE
+SET @diaFlag = 1
+SET @FechaFinSemana = DATEADD(DAY,6,@FechaItera)
+
+INSERT INTO dbo.SemanaPlanilla ([FechaInicio],
+								[FechaFin]
+								)
+SELECT  @FechaItera AS [FechaInicio],
+		@FechaFinSemana AS [FechaFin]
+
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 WHILE (@FechaItera <= @FechaFin)
 BEGIN
-  
-	IF DATEPART(WEEKDAY, @FechaItera) = 5--CALCULO DE LA SEMANA Y EL MES
+
+	IF (@diaFlag = 8)
 	BEGIN
-		IF(DATENAME(MONTH,DATEADD(DAY,1,@FechaItera)) <> DATENAME(MONTH,DATEADD(DAY,-6,@FechaItera)))
-		BEGIN
-			SELECT @Semanas = 0
-			SELECT @RecorrerSemanas = (SELECT DATEADD(DAY,1,@FechaItera))
-			WHILE (DATENAME(MONTH,DATEADD(DAY,1,@FechaItera)) = (DATENAME(MONTH,@RecorrerSemanas)))
-			BEGIN
-				SET @RecorrerSemanas = (SELECT DATEADD(WEEK,1,@RecorrerSemanas))
-				SET @Semanas = @Semanas+1
-			END
-				INSERT INTO dbo.MesPlanilla
-				VALUES((SELECT DATEADD(DAY,1,@FechaItera)), (SELECT DATEADD(DAY,7*@Semanas,@FechaItera)))--crea la variable de mes planilla
-		END
-		
-		INSERT INTO dbo.SemanaPlanilla
-		VALUES( (SELECT MAX(Id) AS Id FROM dbo.MesPlanilla),(SELECT DATEADD(DAY,1,@FechaItera)), (SELECT DATEADD(DAY,7,@FechaItera)))--crea la variable de semana planilla
-	END
+		SET @FechaFinSemana = DATEADD(DAY,6,@FechaItera)
+		INSERT INTO dbo.SemanaPlanilla ([FechaInicio],
+										[FechaFin]
+										)
+		SELECT  @FechaItera AS [FechaInicio],
+				@FechaFinSemana AS [FechaFin]
+		SET @diaFlag = 1
+	END;
 
 	----------------------------------------------------EmpleadosInsertar                                                                Insertar en orden o da error
 	INSERT INTO @EmpleadosInsertar
@@ -198,7 +155,6 @@ BEGIN
 	FROM @xmlData.nodes('Datos/Operacion[@Fecha = sql:variable("@FechaItera")]/TipoDeJornadaProximaSemana') AS T(Item)
 
 	-------------------------------------------------------------------------------------------------------------------------------- Insertar empleados
-
 
 	INSERT dbo.Empleado([Nombre],
 						[IdTipoIdentificacion],
@@ -270,52 +226,67 @@ BEGIN
 
 	-------------------------------------------------------------------------------------------------------------------------------------
 
-	 --Insertar deduccion no obligatorias
-	IF (NOT EXISTS (SELECT * 
-					FROM dbo.FijaNoObligatoria f 
-					INNER JOIN @InsertarDeduccionesEmpleado E
-					ON E.monto = F.Monto
-					WHERE F.Monto = E.monto)
-					)
-		BEGIN
-			INSERT INTO dbo.FijaNoObligatoria
-			SELECT  E.monto AS [Monto]
-			FROM @InsertarDeduccionesEmpleado E
+	-- Insertar deduccion no obligatorias                                No funciona porque el profe explico hoy que se hace mediante fechas
+	--IF (NOT EXISTS (SELECT * 
+	--				FROM dbo.FijaNoObligatoria f 
+	--				INNER JOIN @InsertarDeduccionesEmpleado E
+	--				ON E.monto = F.Monto
+	--				WHERE F.Monto = E.monto)
+	--				)
+	--	BEGIN
+	--		INSERT INTO dbo.FijaNoObligatoria
+	--		SELECT  E.monto AS [Monto]
+	--		FROM @InsertarDeduccionesEmpleado E
 
 
-		END;
-
-
-
-
-    INSERT dbo.DeduccionXEmpleado
-	SELECT  E.Id AS [IdEmpleado],
-			I.IdDeduccion AS [IdTipoDeduccion],
-			f.Id AS [IdFijaNoObligatoria],
-			1
-	FROM @InsertarDeduccionesEmpleado I
-	INNER JOIN dbo.Empleado E 
-	ON I.ValorDocumento = E.ValorDocumentoIdentificacion
-	INNER JOIN dbo.FijaNoObligatoria f
-	ON f.Monto = i.monto
-
-
-	 --desasociar (eliminar deducciones) ...
-	SELECT @empleadoEliminar= E.Id, @tipoEliminar = T.Id
-	FROM @EliminarDeduccionesEmpleado D
-	INNER JOIN dbo.Empleado E
-	ON e.ValorDocumentoIdentificacion = D.ValorDocumento
-	INNER JOIN DBO.TipoDeduccion T
-	ON T.Id =D.IdDeduccion 
+	--	END;
 
 
 
-	UPDATE dbo.DeduccionXEmpleado
-	set Activo=0
-	where @empleadoEliminar = [IdEmpleado]  AND  @tipoEliminar = [IdTipoDeduccion]
+
+ --   INSERT dbo.DeduccionXEmpleado
+	--SELECT  E.Id AS [IdEmpleado],
+	--		I.IdDeduccion AS [IdTipoDeduccion],
+	--		f.Id AS [IdFijaNoObligatoria],
+	--		1
+	--FROM @InsertarDeduccionesEmpleado I
+	--INNER JOIN dbo.Empleado E 
+	--ON I.ValorDocumento = E.ValorDocumentoIdentificacion
+	--INNER JOIN dbo.FijaNoObligatoria f
+	--ON f.Monto = i.monto
+
+
+	-- --desasociar (eliminar deducciones) ...
+	--DECLARE @empleadoEliminar INT
+	--DECLARE @tipoEliminar INT
+	--SELECT @empleadoEliminar= E.Id, @tipoEliminar = T.Id
+	--FROM @EliminarDeduccionesEmpleado D
+	--INNER JOIN dbo.Empleado E
+	--ON e.ValorDocumentoIdentificacion = D.ValorDocumento
+	--INNER JOIN DBO.TipoDeduccion T
+	--ON T.Id =D.IdDeduccion 
+
+
+
+	--UPDATE dbo.DeduccionXEmpleado
+	--set Activo=0
+	--where @empleadoEliminar = [IdEmpleado]  AND  @tipoEliminar = [IdTipoDeduccion]
 
 
 	-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+	-- Procesar asistencias
+
+	DECLARE @lo INT, @hi INT, @Entrada SMALLDATETIME,
+			@Salida SMALLDATETIME,@ValorDocIdentidad INT,
+			@IdEmpleado INT,  @HoraInicioJornada TIME(0),
+			@HoraFinJornada TIME(0),@horasOrdinarias INT,
+			@SalarioXHora MONEY,@MontoGanadoHO MONEY,
+			@EsJueves BIT, @EsFinMes BIT,
+			@ultimaFecha INT, @HorasLaborales INT,
+			@HorasExtra INT, @MontoGanadoHExtra MONEY,
+			@IdJornadaAs INT
+
 
 
 
@@ -340,7 +311,7 @@ BEGIN
 
 	--	--determinar la jornada de esta semana de ese empleado
 
-	
+		DECLARE @HoraInicio DATE, @HoraFin DATE
 
 
 
@@ -360,7 +331,6 @@ BEGIN
 		SET @horasOrdinarias =( DATEDIFF (hh, @Entrada, @Salida ))
 		SET @HorasLaborales = ( DATEDIFF (hh, @HoraInicioJornada, @HoraFinJornada ))
 
-
 	--	--determinar monto ganado por horas ordinarias y horas Extra----------------------------------------------------------------------------------------------
 		SELECT @SalarioXHora = P.SalarioXHora
 		FROM dbo.Puesto P
@@ -368,42 +338,40 @@ BEGIN
 		ON E.IdPuesto = P.Id
 		WHERE E.Id = @IdEmpleado
 
-		SET @MontoGanadoHExtraDoble = 0
-		SET @MontoGanadoHO = 0
-		SET @MontoGanadoHExtra = 0
-		SET @HorasExtraDoble = 0
-		SET @HorasExtra = 0
-		Set @EsJueves = 0
-		SET @EsFinMes = 0
+		
 		SET @MontoGanadoHO = @horasOrdinarias*@SalarioXHora-----------@Monto Ganado Horas Ordinarias
-		SET @HorasLaboralesTrabajadas = @horasOrdinarias--------------total de horas laboradas
 
-	----	--------------------------------------------------------------------------------------------------------------------------------------------------Determina si las extras son por 2 0 por 1.5
+
+
+
+
+		SET @HorasExtra = 0
+		IF @horasOrdinarias - @HorasLaborales > 0
+		BEGIN
+			SET @HorasExtra =  @horasOrdinarias - @HorasLaborales 
+			SET @MontoGanadoHExtra = (@HorasExtra*@SalarioXHora)*1.5-----------@Monto Ganado Horas EXTRA
+		END;
+
+		 
+		
+
+	----	--------------------------------------------------------------------------------------------------------------------------------------------------Determina si las extras son por 2
+
+		DECLARE @dialibre DATE
+
 		IF (EXISTS (SELECT Fecha 
 					FROM dbo.Feriado f 
 					WHERE @FechaItera = f.Fecha) 
 					OR  DATENAME(DW, @FechaItera) = 'Sunday') 
 					AND (@horasOrdinarias - @HorasLaborales > 0)
 		BEGIN
-			IF @horasOrdinarias - @HorasLaborales > 0
-			BEGIN
-				SET @HorasExtraDoble =  @horasOrdinarias - @HorasLaborales 
-				SET @MontoGanadoHExtraDoble = (@HorasExtraDoble*@SalarioXHora)*2-----------@Monto Ganado Horas EXTRA FERIADO o Domingo
-				SET @HorasLaboralesTrabajadas = @HorasLaboralesTrabajadas - @HorasExtraDoble
-			END
-		END
-		ELSE
-		BEGIN
-			IF @horasOrdinarias - @HorasLaborales > 0
-			BEGIN
-				SET @HorasExtra =  @horasOrdinarias - @HorasLaborales 
-				SET @MontoGanadoHExtra = (@HorasExtra*@SalarioXHora)*1.5-----------@Monto Ganado Horas EXTRA
-				SET @HorasLaboralesTrabajadas = @HorasLaboralesTrabajadas - @HorasExtra
-				
-			END
-		END
 		
-
+			SET @HorasExtra =  @horasOrdinarias - @HorasLaborales 
+			SET @MontoGanadoHExtra = (@HorasExtra*@SalarioXHora)*2-----------@Monto Ganado Horas EXTRA FERIADO o Domingo
+	
+		END;
+		
+		Set @EsJueves = 0
 		If  DATENAME(DW, @FechaItera) = 'Thursday'
 		BEGIN
 			SET @EsJueves = 1
@@ -416,8 +384,9 @@ BEGIN
 
 
 
-		SET @ultimaFecha = DAY(DATEADD(d,1,@FechaItera))--averigua si el dia que sigue es inicio de mes
+		SET @ultimaFecha = DAY(DATEADD(d,1,@FechaItera))
 
+		SET @EsFinMes = 0
 
 		If @ultimaFecha = 1
 		BEGIN
@@ -426,74 +395,42 @@ BEGIN
 			
 			
 		--------------------------------------------------------Se empieza la transaction  
-		BEGIN TRANSACTION
+		--BEGIN TRANSACTION
 		----	insertar asistencias ----------------------------------------------------------------------no lo he probado
-			INSERT INTO dbo.MarcarAsistencia
-			SELECT @IdJornadaAs AS [IdJornada],
-					@Entrada AS [MarcarInicio],
-					@Salida AS [MarcarFin],
-					@horasOrdinarias,
-					@HorasExtra,
-					@HorasExtraDoble
-
+		--	INSERT INTO dbo.MarcarAsistencia
+		--	SELECT @IdJornadaAs AS [IdJornada],
+		--			@Entrada AS [MarcarInicio],
+		--			@Salida AS [MarcarFin]
 						
 			--insertar movimientoplanilla ()-------------------------------------------------------------Nos faltan tablas por cargar para poder insertar un movimiento
-			INSERT INTO [dbo].[MovPlanilla]
-			SELECT  
-					1,
-					@FechaItera,
-					@MontoGanadoHO,
-					@HorasLaboralesTrabajadas
-					
-			INSERT INTO [dbo].[MovPlanilla]
-			SELECT 
-					2,
-					@FechaItera,
-					@MontoGanadoHExtra,
-					@HorasExtra
-					
-			WHERE  @HorasExtra>0
-
-			INSERT INTO [dbo].[MovPlanilla]
-			SELECT 
-					3,
-					@FechaItera,
-					@MontoGanadoHExtraDoble,
-					@HorasExtraDoble
-					
-			WHERE  @HorasExtraDoble>0
+			--select .... @montoGanadoHO ...
+			--where  @horasOrdinarias>0
 				
-
-			IF @esJueves = 1
-			BEGIN
-				INSERT INTO[dbo].[PlanillaSemXEmpleado]
-				SELECT 0,  
-					(SELECT MAX(Id) FROM [dbo].[SemanaPlanilla]),
-					@IdEmpleado,
-					0
-
-
-
-				--UPDATE [dbo].[PlanillaMesXEmpleado]
-				--SET [SalarioNeto] = @MontoGanadoHExtra + @MontoGanadoHExtraDoble + @MontoGanadoHO
-				--WHERE IdEmpleado = @IdEmpleado AND [IdPlanillaSem] = (SELECT MAX(Id) FROM [dbo].MesPlanilla)
-
-
-				END
+			--insertar movimientoplanilla ()
+			--select .... @montoGanadoHExtrasNormal ...
+			--where  @horasExtraOrdinariasNOrmales>0
 				
-			If @EsFinMes  = 1
-			BEGIN
-				   INSERT INTO [dbo].[PlanillaMesXEmpleado]
-				   SELECT  (SELECT MAX(Id) FROM [dbo].MesPlanilla),
-				   0,
-				   0,
-				   @IdEmpleado
-			END
+			--insertar movimientoplanilla ()
+			--select .... @montoGanadoHExtrasDobles ...
+			--where  @horasExtraOrdinariasDobles>0
 				
-			UPDATE [dbo].[PlanillaSemXEmpleado]
-			SET [TotalSalarioBruto] = @MontoGanadoHExtra + @MontoGanadoHExtraDoble + @MontoGanadoHO
-			WHERE IdEmpleado = @IdEmpleado AND [IdPlanillaSem] = (SELECT MAX(Id) FROM [dbo].MesPlanilla)
-		COMMIT TRANSACTION 
+		--	IF @esJueves = 1
+		--	Begin
+		--			insertar movimientos de deduccion
+		--			Cear instancia en semanaplanilla
+		--			actualizar planillaxmesxemp
+		--	end
+				
+		--	If #esfin de mes
+		--	begin
+		--		    crear instancia de PlanillaxMesxEmp
+		--	end
+				
+		--	Update dbo.PlanillaSemanalXEmp
+		----	set SalarioBruto=@montoGanadoHO+@montoGanadoHExtrasNormal+@horasExtraOrdinariasDobles
+		----	where EdEmpleado=@idEmpleado and IdSemama=@IdSemana	
+			
+		--commit transaction
 			
 			
 			
@@ -502,17 +439,49 @@ BEGIN
 	
 	END;
 
-	DELETE FROM @EmpleadosInsertar/*Limpia la tabla @EmpleadosInsertar*/
-	DELETE FROM @Asistencias/*Limpia la tabla @Asistencias*/
-	DELETE FROM @EmpleadosBorrar/*Limpia la tabla @EmpleadosBorrar*/
-	DELETE FROM @EliminarDeduccionesEmpleado/*Limpia la tabla @EliminarDeduccionesEmpleado*/
-	DELETE FROM @NuevosHorarios/*Limpia la tabla @NuevosHorarios*/
-	DELETE FROM @InsertarDeduccionesEmpleado/*Limpia la tabla de @InsertarDeduccionesEmpleado*/
+
+
+
+
+
+
+
+
+
+
+	DELETE FROM @EmpleadosInsertar/*Limpia la tabla empelados*/
+	DELETE FROM @Asistencias
+	DELETE FROM @EmpleadosBorrar
+	DELETE FROM @EliminarDeduccionesEmpleado
+	DELETE FROM @NuevosHorarios
+	DELETE FROM @InsertarDeduccionesEmpleado
 
 
 	SET @diaFlag = @diaFlag+1
 	SET @FechaItera = DATEADD(DAY,1,@FechaItera)
 
 END;
+
+
+
+
+
+
+
+
+
+--INSERT INTO @TipoDeJornadaProximaSemana
+--SELECT  T.Item.value('@IdJornada', 'INT') AS IdJornada,
+--		T.Item.value('@ValorDocumentoIdentidad', 'INT') AS ValorDocumento
+--FROM @xmlData.nodes('Datos/Operacion/TipoDeJornadaProximaSemana') AS T(Item)
+
+
+	
+--INSERT INTO @TipoJornada 
+--SELECT  T.Item.value('@HoraEntrada', 'time') AS Entrada,
+--		T.Item.value('@HoraSalida', 'time') AS Salida,
+--		T.Item.value('@Id', 'int') AS idJornada,
+--		T.Item.value('@Nombre', 'VARCHAR(64)') AS Nombre
+--FROM @xmlData.nodes('Datos/Catalogos/TiposDeJornada/TipoDeJornada') AS T(Item)
 SET NOCOUNT OFF;
- 
+

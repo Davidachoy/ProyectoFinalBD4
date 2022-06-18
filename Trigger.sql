@@ -3,17 +3,23 @@ ON dbo.Empleado
 AFTER INSERT
 AS
 BEGIN
-declare @lol int
+declare @idObligatoria int
 
 SET NOCOUNT ON;
+
+	set @idObligatoria = (select E.id 
+						  from dbo.TipoDeduccion E 
+						  where E.EsObligatorio = 'Si'
+						  )
 
 	INSERT INTO dbo.DeduccionXEmpleado( [IdEmpleado],
 										[IdTipoDeduccion]
 										)
 	SELECT  E.ID,
-			1
+			@idObligatoria
 	FROM INSERTED E
-	ORDER BY e.Id
+	ORDER BY E.Id
+	
 
 
 SET NOCOUNT OFF;
