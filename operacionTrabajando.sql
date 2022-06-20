@@ -77,10 +77,8 @@ DECLARE @empleadoEliminar INT
 DECLARE @tipoEliminar INT
 DECLARE @lo INT
 DECLARE @hi INT
-DECLARE @Entrada SMALLDATETIME
-DECLARE @Salida SMALLDATETIME
-DECLARE @ValorDocIdentidad INT
-DECLARE @IdEmpleado INT
+
+
 DECLARE @HoraInicioJornada TIME(0)
 DECLARE @HoraFinJornada TIME(0)
 DECLARE @horasOrdinarias INT
@@ -112,6 +110,9 @@ DECLARE @IdDepartamento INT
 
 --JORNADA
 DECLARE @IdJornada INT
+--ASISTENCIA 
+DECLARE @Entrada SMALLDATETIME
+DECLARE @Salida SMALLDATETIME
 
 
 
@@ -124,7 +125,7 @@ EXEC [dbo].[cargarDatosCatalogo]
 
 
 
-INSERT INTO @Fechas
+INSERT INTO @Fechas(FechaOperacion)
 SELECT T.Item.value('@Fecha', 'DATE') AS FechaOperacion
 FROM @xmlData.nodes('Datos/Operacion') AS T(Item)
 
@@ -149,16 +150,29 @@ BEGIN
 				SET @RecorrerSemanas = (SELECT DATEADD(WEEK,1,@RecorrerSemanas))
 				SET @Semanas = @Semanas+1
 			END
-				INSERT INTO dbo.MesPlanilla
+				INSERT INTO dbo.MesPlanilla([FechaInicio],
+											[FechaFin]
+											)
 				VALUES((SELECT DATEADD(DAY,1,@FechaItera)), (SELECT DATEADD(DAY,7*@Semanas,@FechaItera)))--crea la variable de mes planilla
 		END
 		
-		INSERT INTO dbo.SemanaPlanilla
+		INSERT INTO dbo.SemanaPlanilla([idMesPlanilla],
+									   [FechaInicio],
+									   [FechaFin]
+									   )
 		VALUES( (SELECT MAX(Id) AS Id FROM dbo.MesPlanilla),(SELECT DATEADD(DAY,1,@FechaItera)), (SELECT DATEADD(DAY,7,@FechaItera)))--crea la variable de semana planilla
 	END
 
 	----------------------------------------------------EmpleadosInsertar                                                                Insertar en orden o da error
-	INSERT INTO @EmpleadosInsertar
+	INSERT INTO @EmpleadosInsertar(FechaNacimiento,
+								   Nombre,
+								   IdTipoDocumento,
+								   ValorDocumento,
+								   IdDepartamento,
+								   IdPuesto,
+								   Usuario,
+								   Password
+								   )
 	SELECT  T.Item.value('@FechaNacimiento', 'DATE') AS FechaNacimiento,
 			T.Item.value('@Nombre', 'VARCHAR(64)') AS Nombre,
 			T.Item.value('@idTipoDocumentacionIdentidad', 'INT') AS IdTipoDocumento,
@@ -172,13 +186,16 @@ BEGIN
 
 
 	------------------------------------------------EmpleadosBorrar
-	INSERT INTO @EmpleadosBorrar
+	INSERT INTO @EmpleadosBorrar(ValorDocumento)
 	SELECT T.Item.value('@ValorDocumentoIdentidad', 'INT') AS ValorDocumento
 	FROM @xmlData.nodes('Datos/Operacion[@Fecha = sql:variable("@FechaItera")]/EliminarEmpleado') AS T(Item)
 
 	----------------------------------------------------InsertarDeducciones
 
-	INSERT INTO @InsertarDeduccionesEmpleado
+	INSERT INTO @InsertarDeduccionesEmpleado(monto,
+											 ValorDocumento,
+											 IdDeduccion
+											 )
 	SELECT  T.Item.value('@Monto', 'MONEY') AS monto,  
 			T.Item.value('@ValorDocumentoIdentidad', 'INT') AS ValorDocumento,
 			T.Item.value('@IdDeduccion', 'INT') AS IdDeduccion	
@@ -187,7 +204,9 @@ BEGIN
 
 
 	-----------------------------------------------EliminarDeducciones
-	INSERT INTO @EliminarDeduccionesEmpleado
+	INSERT INTO @EliminarDeduccionesEmpleado(ValorDocumento,
+											 IdDeduccion
+											 )
 	SELECT  T.Item.value('@ValorDocumentoIdentidad', 'INT') AS ValorDocumento,
 			T.Item.value('@IdDeduccion', 'INT') AS IdDeduccion
 			
@@ -195,15 +214,20 @@ BEGIN
 
 	--------------------------------------------insert @asistencias
 
-	INSERT INTO @Asistencias 
-	SELECT  T.Item.value('@ValorDocumentoIdentidad', 'INT') AS ValorDocumentoIdentidad,
+	INSERT INTO @Asistencias(ValorDocumento,
+							Entrada,
+							Salida
+							)
+	SELECT  T.Item.value('@ValorDocumentoIdentidad', 'INT') AS ValorDocumento,
 			T.Item.value('@FechaEntrada', 'smalldatetime') AS Entrada,
 			T.Item.value('@FechaSalida', 'smalldatetime') AS Salida
 	FROM @xmlData.nodes('Datos/Operacion[@Fecha = sql:variable("@FechaItera")]/MarcaDeAsistencia') AS T(Item)
 
 	--------------------------------------------insert @NuevosHorarios
 
-	INSERT INTO @NuevosHorarios 
+	INSERT INTO @NuevosHorarios(IdJornada,
+								ValorDocumentoIdentidad
+								)
 	SELECT  T.Item.value('@IdJornada', 'INT') AS IdJornada,
 			T.Item.value('@ValorDocumentoIdentidad', 'INT') AS ValorDocumentoIdentidad
 	FROM @xmlData.nodes('Datos/Operacion[@Fecha = sql:variable("@FechaItera")]/TipoDeJornadaProximaSemana') AS T(Item)
@@ -305,6 +329,51 @@ BEGIN
 
 
 -- Marcar Asistencia
+
+
+	If EXISTS(SELECT 1 
+		      FROM @Asistencias A
+			  )
+	BEGIN
+		SELECT @SecInicio = MIN(Sec), 
+			   @SecFinal = MAX(Sec) 
+		FROM @Asistencias;
+
+		SET @SecItera = @SecInicio;
+
+		WHILE @SecItera <= @SecFinal
+		BEGIN
+
+			SELECT @ValorDocumentoIdentidad = A.ValorDocumento,
+				   @Entrada = A.Entrada,
+				   @Salida = A.Salida
+			FROM @Asistencias A
+			WHERE A.Sec = @SecItera
+
+			EXEC [dbo].[sp_InsertarMarca]
+				@ValorDocumentoIdentidad,
+				@Entrada,
+				@Salida,
+				0
+
+
+
+
+			SET @SecItera = @SecItera + 1
+		END;
+	END;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
