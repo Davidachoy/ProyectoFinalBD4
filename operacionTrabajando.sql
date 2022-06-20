@@ -214,11 +214,8 @@ BEGIN
 
 	--------------------------------------------insert @asistencias
 
-	INSERT INTO @Asistencias(ValorDocumento,
-							Entrada,
-							Salida
-							)
-	SELECT  T.Item.value('@ValorDocumentoIdentidad', 'INT') AS ValorDocumento,
+	INSERT INTO @Asistencias
+	SELECT  T.Item.value('@ValorDocumentoIdentidad', 'INT') AS ValorDocumentoIdentidad,
 			T.Item.value('@FechaEntrada', 'smalldatetime') AS Entrada,
 			T.Item.value('@FechaSalida', 'smalldatetime') AS Salida
 	FROM @xmlData.nodes('Datos/Operacion[@Fecha = sql:variable("@FechaItera")]/MarcaDeAsistencia') AS T(Item)
@@ -332,7 +329,7 @@ BEGIN
 
 
 	If EXISTS(SELECT 1 
-		      FROM @Asistencias A
+		      FROM @Asistencias
 			  )
 	BEGIN
 		SELECT @SecInicio = MIN(Sec), 
@@ -350,11 +347,15 @@ BEGIN
 			FROM @Asistencias A
 			WHERE A.Sec = @SecItera
 
+
+
+			print (@ValorDocumentoIdentidad)
+			print(@Entrada)
+			print(@Salida)
 			EXEC [dbo].[sp_InsertarMarca]
 				@ValorDocumentoIdentidad,
 				@Entrada,
-				@Salida,
-				0
+				@Salida
 
 
 
