@@ -63,6 +63,7 @@ DECLARE @NuevosHorarios TABLE (--tablas para las jornadas
 --Declarar variables
 
 DECLARE @FechaItera DATE
+DECLARE @FechaFin DATE
 --VARIABLES RECORRIDOS
 DECLARE @RecorrerSemanas DATE
 DECLARE @Semanas INT
@@ -85,16 +86,17 @@ DECLARE @IdJornada INT
 --ASISTENCIA 
 DECLARE @Entrada SMALLDATETIME
 DECLARE @Salida SMALLDATETIME
+DECLARE @Fecha DATE
 
-
+DECLARE @empleadoEliminar INT
+DECLARE @tipoEliminar INT
 
 
 
 --Ejecutar script cargar catalogo
 
 EXEC [dbo].[BorrarDatos]-- SCRIPT PARA BORRAR DATOS
-EXEC [dbo].[BorrarDatos]-- SCRIPT PARA BORRAR DATOS
-EXEC [dbo].[BorrarDatos]-- SCRIPT PARA BORRAR DATOS
+
 EXEC [dbo].[cargarDatosCatalogo]
 
 
@@ -229,7 +231,8 @@ BEGIN
 			EXEC [dbo].[sp_InsertarMarca]
 				@ValorDocumentoIdentidad,
 				@Entrada,
-				@Salida
+				@Salida,
+				@FechaItera
 
 
 
@@ -340,48 +343,62 @@ BEGIN
 
 
 --	 --Insertar deduccion no obligatorias
---	IF (NOT EXISTS (SELECT * 
---					FROM dbo.FijaNoObligatoria f 
---					INNER JOIN @InsertarDeduccionesEmpleado E
---					ON E.monto = F.Monto
---					WHERE F.Monto = E.monto)
---					)
---		BEGIN
---			INSERT INTO dbo.FijaNoObligatoria
---			SELECT  E.monto AS [Monto]
---			FROM @InsertarDeduccionesEmpleado E
+	IF (NOT EXISTS (SELECT * 
+					FROM dbo.FijaNoObligatoria f 
+					INNER JOIN @InsertarDeduccionesEmpleado E
+					ON E.monto = F.Monto
+					WHERE F.Monto = E.monto)
+					)
+		BEGIN
+			INSERT INTO dbo.FijaNoObligatoria
+			SELECT  E.monto AS [Monto]
+			FROM @InsertarDeduccionesEmpleado E
 
 
---		END;
+		END;
 
-
-
-
---    INSERT dbo.DeduccionXEmpleado
---	SELECT  E.Id AS [IdEmpleado],
---			I.IdDeduccion AS [IdTipoDeduccion],
---			f.Id AS [IdFijaNoObligatoria],
---			1
---	FROM @InsertarDeduccionesEmpleado I
---	INNER JOIN dbo.Empleado E 
---	ON I.ValorDocumento = E.ValorDocumentoIdentificacion
---	INNER JOIN dbo.FijaNoObligatoria f
---	ON f.Monto = i.monto
-
-
---	 --desasociar (eliminar deducciones) ...
---	SELECT @empleadoEliminar= E.Id, @tipoEliminar = T.Id
---	FROM @EliminarDeduccionesEmpleado D
---	INNER JOIN dbo.Empleado E
---	ON e.ValorDocumentoIdentificacion = D.ValorDocumento
---	INNER JOIN DBO.TipoDeduccion T
---	ON T.Id =D.IdDeduccion 
+	DECLARE @maxId int
+	SELECT @maxId = MAX(Id) FROM dbo.SemanaPlanilla
+	IF  DATEPART(WEEKDAY, @FechaItera) = 5 
+		SELECT @Fecha = (SELECT FechaInicio FROM dbo.SemanaPlanilla WHERE Id = @maxId)
+	ELSE
+		SELECT @Fecha = (SELECT DATEADD(DAY, 1 , (SELECT FechaFin FROM dbo.SemanaPlanilla WHERE Id = @maxId)))
 
 
 
---	UPDATE dbo.DeduccionXEmpleado
---	set Activo=0
---	where @empleadoEliminar = [IdEmpleado]  AND  @tipoEliminar = [IdTipoDeduccion]
+	INSERT dbo.DeduccionXEmpleado
+	SELECT  E.Id AS [IdEmpleado],
+			I.IdDeduccion AS [IdTipoDeduccion],
+			f.Id AS [IdFijaNoObligatoria],
+			@Fecha,
+			NULL,
+			1
+	FROM @InsertarDeduccionesEmpleado I
+	INNER JOIN dbo.Empleado E 
+	ON I.ValorDocumento = E.ValorDocumentoIdentificacion
+	INNER JOIN dbo.FijaNoObligatoria f
+	ON f.Monto = i.monto
+
+
+	 --desasociar (eliminar deducciones) ...
+
+	SELECT @empleadoEliminar= E.Id, @tipoEliminar = T.Id
+	FROM @EliminarDeduccionesEmpleado D
+	INNER JOIN dbo.Empleado E
+	ON e.ValorDocumentoIdentificacion = D.ValorDocumento
+	INNER JOIN DBO.TipoDeduccion T
+	ON T.Id =D.IdDeduccion 
+
+	
+	IF DATEPART(WEEKDAY, @FechaItera) = 5
+		SELECT @Fecha = @FechaItera
+
+	ELSE
+		SELECT @Fecha = (SELECT FechaFin FROM dbo.SemanaPlanilla WHERE Id = @maxId)
+
+	UPDATE dbo.DeduccionXEmpleado
+	SET FechaFin = @Fecha, Activo = 0
+	where @empleadoEliminar = [IdEmpleado]  AND  @tipoEliminar = [IdTipoDeduccion]
 
 
 --	-----------------------------------------------------------------------------------------------------------------------------------------------------
